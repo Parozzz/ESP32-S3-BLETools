@@ -48,12 +48,13 @@ static const uint8_t HIDReportDescriptor[] = {
   USAGE_MAXIMUM(1),   0x65,          //   USAGE_MAXIMUM (0x65)
   HIDINPUT(1),        0x00,          //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
 
-  END_COLLECTION(0)                 // END_COLLECTION
-  // ------------------------------------------------- Media Keys
-  /*
+  END_COLLECTION(0),                 // END_COLLECTION
+  // -------------------------------------------------
+
   USAGE_PAGE(1),      0x0C,          // USAGE_PAGE (Consumer)
   USAGE(1),           0x01,          // USAGE (Consumer Control)
   COLLECTION(1),      0x01,          // COLLECTION (Application)
+  // ------------------------------------------------- Media Keys
   REPORT_ID(1),       REPORT_MEDIA_KEYS_ID, //   REPORT_ID (3)
   USAGE_PAGE(1),      0x0C,          //   USAGE_PAGE (Consumer)
   LOGICAL_MINIMUM(1), 0x00,          //   LOGICAL_MINIMUM (0)
@@ -76,7 +77,7 @@ static const uint8_t HIDReportDescriptor[] = {
   USAGE(2),           0x24, 0x02,    //   Usage (WWW back)    ; bit 5: 32
   USAGE(2),           0x83, 0x01,    //   Usage (Media sel)   ; bit 6: 64
   USAGE(2),           0x8A, 0x01,    //   Usage (Mail)        ; bit 7: 128
-  HID_INPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  HIDINPUT(1),        0x02,          //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   END_COLLECTION(0)                  // END_COLLECTION */
 };
 
