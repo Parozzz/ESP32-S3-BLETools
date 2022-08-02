@@ -115,6 +115,15 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t eve
   }
 }
 
+#define MODIFIERS_LEFT_CTRL 0x01
+#define MODIFIERS_LEFT_SHIFT 0x02
+#define MODIFIERS_LEFT_ALT 0x04
+#define MODIFIERS_LEFT_GUI 0x08
+#define MODIFIERS_RIGHT_CTRL 0x10
+#define MODIFIERS_RIGHT_SHIFT 0x20
+#define MODIFIERS_RIGHT_ALT 0x40
+#define MODIFIERS_RIGHT_GUI 0x80
+
 typedef struct keyboard_report_t
 {
   uint8_t modifiersKeys = 0;
@@ -125,7 +134,7 @@ keyboard_report_t kbd_report;
 
 bool deviceConnected = false;
 
-class MyServerCallbacks : public NimBLEServerCallbacks
+class MyServerCallbacks : public BLEServerCallbacks
 {
   void onConnect(BLEServer *pServer)
   {
@@ -138,6 +147,24 @@ class MyServerCallbacks : public NimBLEServerCallbacks
     SerialUSB.println("BLE - OnDisconnect");
     deviceConnected = false;
   }
+
+  uint32_t onPassKeyRequest()
+  {
+    SerialUSB.println("Server PassKeyRequest");
+    return 123456;
+  }
+
+  bool onConfirmPIN(uint32_t pass_key)
+  {
+    SerialUSB.print("The passkey YES/NO number: ");
+    SerialUSB.println(pass_key);
+    return true;
+  }
+
+  void onAuthenticationComplete(ble_gap_conn_desc desc)
+  {
+    SerialUSB.println("Starting BLE work!");
+  }
 };
 
 class OutputCallbacks : public NimBLECharacteristicCallbacks
@@ -146,42 +173,6 @@ class OutputCallbacks : public NimBLECharacteristicCallbacks
   {
     SerialUSB.print("Output written. Value = ");
     SerialUSB.println(pCharacteristic->getValue().c_str());
-  }
-};
-
-uint32_t passKey;
-
-class SecurityCallBacks : public NimBLESecurityCallbacks
-{
-  uint32_t onPassKeyRequest()
-  {
-    SerialUSB.println("BLE - PassKeyRequested");
-    return 1234;
-  };
-
-  void onPassKeyNotify(uint32_t pass_key)
-  {
-    SerialUSB.print("BLE - PassKeyNotify. Key=");
-    SerialUSB.println(pass_key);
-  }
-
-  bool onSecurityRequest()
-  {
-    SerialUSB.println("BLE - SecurityRequest");
-    return true;
-  }
-
-  void onAuthenticationComplete(ble_gap_conn_desc *desc)
-  {
-    SerialUSB.println("BLE - AuthenticationComplete");
-  }
-
-  bool onConfirmPIN(uint32_t pin)
-  {
-    SerialUSB.print("BLE - ConfirmPIN. Pin = ");
-    SerialUSB.println(pin);
-
-    return pin == 1234;
   }
 };
 
@@ -194,24 +185,24 @@ NimBLEAdvertising *pAdvertising;
 #define TEST_SERVICE_UUID "6a15b3c8-10e1-11ed-861d-0242ac120002"
 #define TEST_UUID "6a15b3cc-10e1-11ed-861d-0242ac120002"
 
-#define SIG 0x02       //The vendor ID source number.
-#define VID 0xe502     //The vendor ID number.
-#define PID 0xA111     //The product ID number.
-#define VERSION 0x0210 //The produce version number.
+#define SIG     0x02     //The vendor ID source number.
+#define VID     0xe502   //The vendor ID number.
+#define PID     0xA111   //The product ID number.
+#define VERSION 0x0210   //The produce version number.
 const uint8_t pnp[] = {SIG,
-                       (uint8_t)(VID >> 8),
-                       (uint8_t)VID,
-                       (uint8_t)(PID >> 8),
-                       (uint8_t)PID,
-                       (uint8_t)(VERSION >> 8),
-                       (uint8_t)VERSION};
+                 (uint8_t)(VID >> 8),
+                 (uint8_t)VID,
+                 (uint8_t)(PID >> 8),
+                 (uint8_t)PID,
+                 (uint8_t)(VERSION >> 8),
+                 (uint8_t)VERSION};
 
-#define COUNTRY 0    //The country code for the device.
-#define INFO_FLAGS 1 //The HID Class Specification release number to use.
-const uint8_t info[] = {0x11,
-                        0x1,
-                        COUNTRY,
-                        INFO_FLAGS};
+#define COUNTRY 0     //The country code for the device.
+#define INFO_FLAGS 1  //The HID Class Specification release number to use.
+  const uint8_t info[] = {0x11,
+                    0x1,
+                    COUNTRY,
+                    INFO_FLAGS};
 
 #define PROTOCOL_MODE_BOOT 0x0
 #define PROTOCOL_MODE_REPORT 0x1
@@ -237,7 +228,7 @@ void setup()
 
   while (!SerialUSB)
   {
-    delay(100);
+	  delay(100);
   }
   SerialUSB.println("BEGIN");
 
@@ -251,27 +242,28 @@ void setup()
   // ============================== INFO ==============================
   SerialUSB.println("SETUP DEVICE INFO SERVICE");
 
-  BLEService *pDeviceInfoService = pServer->createService(NimBLEUUID((uint16_t)0x180a));
-  pDeviceInfoService->createCharacteristic(MODEL_NUMER_UUID, NIMBLE_PROPERTY::READ)->setValue(MODEL_NUMER);
-  pDeviceInfoService->createCharacteristic(SERIAL_NUMBER_UUID, NIMBLE_PROPERTY::READ)->setValue(SERIAL_NUMBER);
-  pDeviceInfoService->createCharacteristic(FW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(FW_REVISION);
-  pDeviceInfoService->createCharacteristic(HW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(HW_REVISION);
-  pDeviceInfoService->createCharacteristic(SW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(SW_REVISION);
+  BLEService *pDeviceInfoService = pServer->createService(NimBLEUUID((uint16_t) 0x180a));
+  //pDeviceInfoService->createCharacteristic(MODEL_NUMER_UUID, NIMBLE_PROPERTY::READ)->setValue(MODEL_NUMER);
+  //pDeviceInfoService->createCharacteristic(SERIAL_NUMBER_UUID, NIMBLE_PROPERTY::READ)->setValue(SERIAL_NUMBER);
+  //pDeviceInfoService->createCharacteristic(FW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(FW_REVISION);
+  //pDeviceInfoService->createCharacteristic(HW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(HW_REVISION);
+  //pDeviceInfoService->createCharacteristic(SW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(SW_REVISION);
   pDeviceInfoService->createCharacteristic(MANUFACTURER_UUID, NIMBLE_PROPERTY::READ)->setValue(MANUFACTURER);
   pDeviceInfoService->createCharacteristic(PNP_UUID, NIMBLE_PROPERTY::READ)->setValue(pnp, sizeof(pnp));
   // ============================== INFO ==============================
   // ============================== HID ==============================
   SerialUSB.println("SETUP HID SERVICE");
 
-  BLEService *pHIDService = pServer->createService(NimBLEUUID((uint16_t)0x1812));
-  pHIDService->createCharacteristic(HID_BOOT_INPUT_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ, 8);
-  pHIDService->createCharacteristic(HID_BOOT_OUTPUT_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR, 1);
-
+  BLEService *pHIDService = pServer->createService(NimBLEUUID((uint16_t) 0x1812));
+  //pHIDService->createCharacteristic(HID_BOOT_INPUT_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ, 8);
+  //pHIDService->createCharacteristic(HID_BOOT_OUTPUT_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR, 1);
+  
   pHIDService->createCharacteristic(HID_INFORMATION_UUID, NIMBLE_PROPERTY::READ, 4)->setValue(info, sizeof(info));
   pHIDService->createCharacteristic(HID_REPORT_MAP_UUID, NIMBLE_PROPERTY::READ)->setValue(HIDReportDescriptor, sizeof(HIDReportDescriptor));
   pHIDService->createCharacteristic(HID_CONTROL_POINT_UUID, NIMBLE_PROPERTY::WRITE_NR, 1)->setValue(1);
   pHIDService->createCharacteristic(HID_PROTOCOL_MODE_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE_NR)->setValue(protocolMode, sizeof(protocolMode));
 
+  
   inputReport = pHIDService->createCharacteristic((uint16_t)0x2A4D, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC);
   inputReport->createDescriptor((uint16_t)0x2908, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC)->setValue({REPORT_KEYBOARD_ID, 0x01});
 
@@ -286,24 +278,19 @@ void setup()
   // ============================== BATTERY ==============================
   SerialUSB.println("SETUP BATTERY SERVICE");
 
-  BLEService *pBatteryService = pServer->createService(NimBLEUUID((uint16_t)0x180f));
+  BLEService *pBatteryService = pServer->createService(NimBLEUUID((uint16_t) 0x180f));
 
-  NimBLECharacteristic *pBatteryLevel = pBatteryService->createCharacteristic((uint16_t)0x2A19, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+  NimBLECharacteristic* pBatteryLevel = pBatteryService->createCharacteristic((uint16_t) 0x2A19, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   pBatteryLevel->setValue(&battery, 1);
-
-  NimBLE2904 *pBatteryLevelDescriptor = (NimBLE2904 *)pBatteryLevel->createDescriptor((uint16_t)0x2904);
+  
+  NimBLE2904* pBatteryLevelDescriptor = (NimBLE2904*) pBatteryLevel->createDescriptor((uint16_t) 0x2904);
   pBatteryLevelDescriptor->setFormat(NimBLE2904::FORMAT_UINT8);
-  pBatteryLevelDescriptor->setNamespace(1);
-  pBatteryLevelDescriptor->setUnit(0x27ad);
+	pBatteryLevelDescriptor->setNamespace(1);
+	pBatteryLevelDescriptor->setUnit(0x27ad);
   // ============================== BATTERY ==============================
 
-  //NimBLEDevice::setSecurityAuth(ESP_LE_AUTH_BOND);
-
-  NimBLEDevice::setSecurityAuth(ESP_LE_AUTH_REQ_SC_MITM_BOND);
-  NimBLEDevice::setSecurityPasskey(1234);
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
-  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-  NimBLEDevice::setSecurityCallbacks(new SecurityCallBacks());
+  NimBLESecurity *pSecurity = new BLESecurity();
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
 
   pDeviceInfoService->start();
   pHIDService->start();
@@ -318,102 +305,27 @@ void setup()
   pAdvertising->start();
 }
 
-uint8_t keyModifiersPressed;
-uint8_t keyPressedArray[6];
-
-void SendKeyReport()
+void SendKeyReport(uint8_t key)
 {
-  kbd_report.modifiersKeys = keyModifiersPressed;
-  for (int c = 0; c < 6; c++)
-  {
-    kbd_report.key_codes[c] = keyPressedArray[c];
-  }
+  kbd_report.modifiersKeys = 0;
+
+  kbd_report.key_codes[0] = key;
 
   inputReport->setValue(kbd_report);
   inputReport->notify();
 }
 
-void keyModifierPress(uint8_t modifier)
+void ReleaseAll()
 {
-  keyModifiersPressed |= modifier;
-  SendKeyReport();
-}
-
-void keyModifierRelease(uint8_t modifier)
-{
-  keyModifiersPressed &= ~modifier;
-  SendKeyReport();
-}
-
-void keyModifiersReleaseAll()
-{
-  keyModifiersPressed = 0;
-  SendKeyReport();
-}
-
-bool keyIsPressed(uint8_t key)
-{
-  for (int x = 0; x < 6; x++)
-  {
-    if (keyPressedArray[x] = key)
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-void keyPress(uint8_t key)
-{
-  if (!keyIsPressed(key))
-  {
-    for (int x = 0; x < 6; x++)
-    {
-      if (keyPressedArray[x] = 0)
-      {
-        keyPressedArray[x] = key;
-      }
-    }
-  }
-
-  SendKeyReport();
-}
-
-void keyRelease(uint8_t key)
-{
-  if (keyIsPressed(key))
-  {
-    for (int x = 0; x < 6; x++)
-    {
-      if (keyPressedArray[x] = key)
-      {
-        keyPressedArray[x] = 0;
-      }
-    }
-  }
-
-  SendKeyReport();
-}
-
-void keyClick(uint8_t key)
-{
-  keyPress(key);
-  keyRelease(key);
-}
-
-
-void keyReleaseAll()
-{
-  keyModifiersPressed = 0;
-
   kbd_report.modifiersKeys = 0;
+
   for (int x = 0; x < 6; x++)
   {
-    keyPressedArray[x] = 0;
+    kbd_report.key_codes[x] = 0;
   }
 
-  SendKeyReport();
+  inputReport->setValue(kbd_report);
+  inputReport->notify();
 }
 
 bool oldConnected = false;
@@ -421,24 +333,13 @@ void loop()
 {
   if (deviceConnected)
   {
-    keyModifierPress(KEY_MODIFIER_LEFT_CTRL);
+    SerialUSB.println("Sending Z!");
 
-    SerialUSB.println("Sending CTRL + A!");
+    SendKeyReport(KEY_Z);
+    delay(10);
+    ReleaseAll();
 
-    keyClick(KEY_A);
     delay(1000);
-
-    SerialUSB.println("Sending CTRL + X!");
-    keyClick(KEY_X);
-    delay(1000);
-
-    SerialUSB.println("Sending CTRL + V!");
-    keyClick(KEY_V);
-
-    keyReleaseAll();
-    SendKeyReport();
-
-    delay(2500);
   }
   else
   {
