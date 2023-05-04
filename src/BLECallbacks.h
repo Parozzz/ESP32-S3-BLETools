@@ -6,10 +6,42 @@
 
 // typedef void (*BooleanCallback)(bool);
 
-class BleKeyboardServerCallbacks : public NimBLEServerCallbacks
+class BleSerialCallbacks : public NimBLECharacteristicCallbacks
 {
 public:
-    void setUSBSerial(Print *debugPrint = nullptr)
+    void setDebugSerial(Print *debugPrint = nullptr)
+    {
+        _debugPrint = debugPrint;
+    }
+
+    void onWrite(NimBLECharacteristic *pCharacteristic)
+    {
+        if (_debugPrint != nullptr)
+        {
+            _debugPrint->println("BLESerial - recv.");
+            _debugPrint->println(pCharacteristic->getValue().c_str());
+        }
+
+        _available = true;
+    }
+
+    bool available()
+    {
+        bool ret = _available;
+        _available = false;
+        return ret;
+    }
+
+private:
+    Print *_debugPrint;
+
+    bool _available = false;
+};
+
+class BleServerCallbacks : public NimBLEServerCallbacks
+{
+public:
+    void setDebugSerial(Print *debugPrint = nullptr)
     {
         _debugPrint = debugPrint;
     }
@@ -30,7 +62,7 @@ public:
         {
             _debugPrint->println("BLE - OnDisconnect");
         }
-        
+
         connect = false;
     }
 
@@ -43,7 +75,7 @@ private:
 class BleKeyboardReportCallbacks : public NimBLECharacteristicCallbacks
 {
 public:
-    void setUSBSerial(Print *debugPrint = nullptr)
+    void setDebugSerial(Print *debugPrint = nullptr)
     {
         _debugPrint = debugPrint;
     }
@@ -60,10 +92,10 @@ private:
     Print *_debugPrint;
 };
 
-class BleKeyboardSecurityCallbacks : public NimBLESecurityCallbacks
+class BleSecurityCallbacks : public NimBLESecurityCallbacks
 {
 public:
-    void setUSBSerial(Print *debugPrint = nullptr)
+    void setDebugSerial(Print *debugPrint = nullptr)
     {
         _debugPrint = debugPrint;
     }
@@ -115,7 +147,7 @@ public:
             _debugPrint->println(pin);
         }
 
-        return pin == 1234;
+        return true;
     }
 
     bool authDone = false;

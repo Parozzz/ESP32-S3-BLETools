@@ -5,11 +5,15 @@
 #include <USBHIDKeyboard.h>
 
 #include <Keys.h>
-#include <BLEKeyboard.h>
+#include <BLETools.h>
 
 USBCDC usbSerial;
 USBHIDKeyboard usbKeyboard;
-BleKeyboard bleKeyboard("ESP32-S3 BLE_HID");
+
+BleTools bleTools("S3 BLE");
+BleKeyboard *bleKeyboard;
+BleBatteryLevel *bleBatteryLevel;
+BleSerial *bleSerial;
 
 static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -86,45 +90,67 @@ void setup()
 
   while (!usbSerial)
   {
-    delay(100);
+    yield();
   }
+
+  delay(2500);
+
   usbSerial.println("BEGIN");
 
-  bleKeyboard.setDebugPrint(&usbSerial);
+  bleTools.setDebugSerial(&usbSerial);
 
-  usbSerial.println("BLE _ InitDevice");
-  bleKeyboard.initDEVICE();
+  bleTools.setDebugSerial(&usbSerial);
+  bleTools.init("GIACOMO P.");
 
-  usbSerial.println("BLE _ InitInfo");
-  bleKeyboard.initINFO("PAROZZZ");
+  bleKeyboard = bleTools.initKeyboard();
+  bleBatteryLevel = bleTools.initBatteryLevel();
+  bleSerial = bleTools.initSerial();
 
-  usbSerial.println("BLE _ InitHID");
-  bleKeyboard.initHID();
-
-  usbSerial.println("BLE _ InitBattery");
-  bleKeyboard.initBATTERY(100);
-
-  usbSerial.println("BLE _ InitAdvertising");
-  bleKeyboard.initADVERTISING(0xB00B);
-
-  usbSerial.println("BLE _ StartAdvertising");
-  bleKeyboard.startAdvertising();
+  bleTools.startAdvertising(0xB00B);
 }
 
+bool oldReady;
+unsigned long long counter;
+bool send = true;
 void loop()
 {
-  bleKeyboard.loop();
+  bleTools.loop();
 
-  if (bleKeyboard.ready)
+  if (bleTools.connected)
   {
-    usbSerial.println("Send Z");
+    if (send)
+    {
+      bleSerial->getSend()->printf("BANANA %d \n", counter++);
+    }
 
-    bleKeyboard.keyClick(KEY_A);
-    delay(2500);
+    int rxAvailable = bleSerial->getReceive()->available();
+    if (rxAvailable)
+    {
+      send = !send;
+
+      usbSerial.print("BLE - Send status changed");
+      usbSerial.println(send);
+
+      for (int x = 0; x < rxAvailable; x++)
+      {
+        bleSerial->getReceive()->read();
+      }
+    }
+
+    delayMicroseconds(700);
   }
-  else
+  else if (bleTools.ready)
   {
-    usbSerial.println("Lap!");
+    oldReady = true;
+    // usbSerial.println("Send Z");
+    // bleKeyboard->keyClick(KEY_A);
+    // delay(2500);
+  }
+  else if (oldReady)
+  {
+    oldReady = false;
+
+    usbSerial.println("BLE - Disconnected");
     delay(500);
   }
 }

@@ -1,51 +1,118 @@
-#include <BLEKeyboard.h>
+#include <BLETools.h>
 
-BleKeyboard::BleKeyboard(const char *deviceName)
+#define UUID_HID_SERVICE (uint16_t)0x1812
+#define UUID_HID_BOOT_INPUT (uint16_t)0x2A22
+#define UUID_HID_BOOT_OUTPUT (uint16_t)0x2A32
+#define UUID_HID_PROTOCOL_MODE (uint16_t)0x2A4E
+#define UUID_HID_INFORMATION (uint16_t)0x2A4A
+#define UUID_HID_REPORT_MAP (uint16_t)0x2A4B
+#define UUID_HID_CONTROL_POINT (uint16_t)0x2A4C
+#define UUID_HID_REPORT (uint16_t)0x2A4D
+#define UUID_HID_REPORT_DESCRIPTOR (uint16_t)0x2908
+
+#define COUNTRY 0    // The country code for the device.
+#define INFO_FLAGS 1 // The HID Class Specification release number to use.
+static const uint8_t info[] = {0x11,
+                               0x1,
+                               COUNTRY,
+                               INFO_FLAGS};
+
+#define PROTOCOL_MODE_BOOT 0x0
+#define PROTOCOL_MODE_REPORT 0x1
+static const uint8_t protocolMode[] = {PROTOCOL_MODE_REPORT};
+
+// Report IDs:
+#define REPORT_KEYBOARD_ID 0x01
+#define REPORT_MEDIA_KEYS_ID 0x02
+static const uint8_t HIDReportDescriptor[] = {
+    USAGE_PAGE(1), 0x01, // USAGE_PAGE (Generic Desktop Ctrls)
+    USAGE(1), 0x06,      // USAGE (Keyboard)
+    COLLECTION(1), 0x01, // COLLECTION (Application)
+    // ------------------------------------------------- Keyboard
+    REPORT_ID(1), REPORT_KEYBOARD_ID, //   REPORT_ID (1)
+                                      //   KEYS MODIFIERS [1 BYTE]
+    REPORT_SIZE(1), 0x01,             //   REPORT_SIZE (1)
+    REPORT_COUNT(1), 0x08,            //   REPORT_COUNT (8)
+    USAGE_PAGE(1), 0x07,              //   USAGE_PAGE (Kbrd/Keypad)
+    USAGE_MINIMUM(1), 0xE0,           //   USAGE_MINIMUM (0xE0)
+    USAGE_MAXIMUM(1), 0xE7,           //   USAGE_MAXIMUM (0xE7)
+    LOGICAL_MINIMUM(1), 0x00,         //   LOGICAL_MINIMUM (0)
+    LOGICAL_MAXIMUM(1), 0x01,         //   Logical Maximum (1)
+    HIDINPUT(1), 0x02,                //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+                                      //   RESERVED [1 BYTE]
+    REPORT_COUNT(1), 0x01,            //   REPORT_COUNT (1) ; 1 byte (Reserved)
+    REPORT_SIZE(1), 0x08,             //   REPORT_SIZE (8)
+    HIDINPUT(1), 0x01,                //   INPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+                                      //   KEYS [6 BYTES]
+    REPORT_COUNT(1), 0x06,            //   REPORT_COUNT (6) ; 6 bytes (Keys)
+    REPORT_SIZE(1), 0x08,             //   REPORT_SIZE(8)
+    LOGICAL_MINIMUM(1), 0x00,         //   LOGICAL_MINIMUM(0)
+    LOGICAL_MAXIMUM(1), 0x65,         //   LOGICAL_MAXIMUM(0x65) ; 101 keys
+    USAGE_PAGE(1), 0x07,              //   USAGE_PAGE (Kbrd/Keypad)
+    USAGE_MINIMUM(1), 0x00,           //   USAGE_MINIMUM (0)
+    USAGE_MAXIMUM(1), 0x65,           //   USAGE_MAXIMUM (0x65)
+    HIDINPUT(1), 0x00,                //   INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+
+    REPORT_COUNT(1), 0x05,  //   REPORT_COUNT (5) ; 5 bits (Num lock, Caps lock, Scroll lock, Compose, Kana)
+    REPORT_SIZE(1), 0x01,   //   REPORT_SIZE (1)
+    USAGE_PAGE(1), 0x08,    //   USAGE_PAGE (LEDs)
+    USAGE_MINIMUM(1), 0x01, //   USAGE_MINIMUM (0x01) ; Num Lock
+    USAGE_MAXIMUM(1), 0x05, //   USAGE_MAXIMUM (0x05) ; Kana
+    HIDOUTPUT(1), 0x02,     //   OUTPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+
+    REPORT_COUNT(1), 0x01, //   REPORT_COUNT (1) ; 3 bits (Padding)
+    REPORT_SIZE(1), 0x03,  //   REPORT_SIZE (3)
+    HIDOUTPUT(1), 0x01,    //   OUTPUT (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+
+    END_COLLECTION(0), // END_COLLECTION
+    // -------------------------------------------------
+
+    USAGE_PAGE(1), 0x0C, // USAGE_PAGE (Consumer)
+    USAGE(1), 0x01,      // USAGE (Consumer Control)
+    COLLECTION(1), 0x01, // COLLECTION (Application)
+    // ------------------------------------------------- Media Keys
+    REPORT_ID(1), REPORT_MEDIA_KEYS_ID, //   REPORT_ID (3)
+    USAGE_PAGE(1), 0x0C,                //   USAGE_PAGE (Consumer)
+    LOGICAL_MINIMUM(1), 0x00,           //   LOGICAL_MINIMUM (0)
+    LOGICAL_MAXIMUM(1), 0x01,           //   LOGICAL_MAXIMUM (1)
+    REPORT_SIZE(1), 0x01,               //   REPORT_SIZE (1)
+    REPORT_COUNT(1), 0x10,              //   REPORT_COUNT (16)
+    USAGE(1), 0xB5,                     //   USAGE (Scan Next Track)     ; bit 0: 1
+    USAGE(1), 0xB6,                     //   USAGE (Scan Previous Track) ; bit 1: 2
+    USAGE(1), 0xB7,                     //   USAGE (Stop)                ; bit 2: 4
+    USAGE(1), 0xCD,                     //   USAGE (Play/Pause)          ; bit 3: 8
+    USAGE(1), 0xE2,                     //   USAGE (Mute)                ; bit 4: 16
+    USAGE(1), 0xE9,                     //   USAGE (Volume Increment)    ; bit 5: 32
+    USAGE(1), 0xEA,                     //   USAGE (Volume Decrement)    ; bit 6: 64
+    USAGE(2), 0x23, 0x02,               //   Usage (WWW Home)            ; bit 7: 128
+    USAGE(2), 0x94, 0x01,               //   Usage (My Computer) ; bit 0: 1
+    USAGE(2), 0x92, 0x01,               //   Usage (Calculator)  ; bit 1: 2
+    USAGE(2), 0x2A, 0x02,               //   Usage (WWW fav)     ; bit 2: 4
+    USAGE(2), 0x21, 0x02,               //   Usage (WWW search)  ; bit 3: 8
+    USAGE(2), 0x26, 0x02,               //   Usage (WWW stop)    ; bit 4: 16
+    USAGE(2), 0x24, 0x02,               //   Usage (WWW back)    ; bit 5: 32
+    USAGE(2), 0x83, 0x01,               //   Usage (Media sel)   ; bit 6: 64
+    USAGE(2), 0x8A, 0x01,               //   Usage (Mail)        ; bit 7: 128
+    HIDINPUT(1), 0x02,                  //   INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    END_COLLECTION(0)                   // END_COLLECTION */
+};
+
+
+void BleKeyboard::setDebugSerial(Print *debugSerial)
 {
-    _deviceName = deviceName;
+    _debugSerial = debugSerial;
+    _outputReportCallbacks.setDebugSerial(debugSerial);
 }
 
-void BleKeyboard::setDebugPrint(Print *debugPrint)
+void BleKeyboard::init(NimBLEServer* bleServer)
 {
-    _debugPrint = debugPrint;
+    if(_debugSerial != nullptr)
+    {
+        _debugSerial->println("BleKeyboard - Init");
+    }
 
-    _serverCallbacks.setUSBSerial(debugPrint);
-    _securityCallbacks.setUSBSerial(debugPrint);
-    _outputReportCallbacks.setUSBSerial(debugPrint);
-}
+    _bleServer = bleServer;
 
-void BleKeyboard::initDEVICE()
-{
-    NimBLEDevice::init(_deviceName);
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-
-    _bleServer = BLEDevice::createServer();
-    _bleServer->advertiseOnDisconnect(true);
-    _bleServer->setCallbacks(&_serverCallbacks);
-
-    NimBLEDevice::setSecurityAuth(ESP_LE_AUTH_REQ_SC_MITM_BOND);
-    NimBLEDevice::setSecurityPasskey(1234);
-    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
-    NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-    NimBLEDevice::setSecurityCallbacks(&_securityCallbacks);
-}
-
-void BleKeyboard::initINFO(const char *manufacturer)
-{
-    BLEService *pDeviceInfoService = _bleServer->createService(NimBLEUUID(UUID_DEVICE_INFO_SERVICE));
-    // pDeviceInfoService->createCharacteristic(MODEL_NUMER_UUID, NIMBLE_PROPERTY::READ)->setValue(MODEL_NUMER);
-    // pDeviceInfoService->createCharacteristic(SERIAL_NUMBER_UUID, NIMBLE_PROPERTY::READ)->setValue(SERIAL_NUMBER);
-    // pDeviceInfoService->createCharacteristic(FW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(FW_REVISION);
-    // pDeviceInfoService->createCharacteristic(HW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(HW_REVISION);
-    // pDeviceInfoService->createCharacteristic(SW_REVISION_UUID, NIMBLE_PROPERTY::READ)->setValue(SW_REVISION);
-    pDeviceInfoService->createCharacteristic(UUID_MANUFACTURER, NIMBLE_PROPERTY::READ)->setValue(manufacturer);
-    pDeviceInfoService->createCharacteristic(UUID_PNP, NIMBLE_PROPERTY::READ)->setValue(pnp, sizeof(pnp));
-
-    pDeviceInfoService->start();
-}
-
-void BleKeyboard::initHID()
-{
     BLEService *pHIDService = _bleServer->createService(NimBLEUUID(UUID_HID_SERVICE));
     pHIDService->createCharacteristic(UUID_HID_BOOT_INPUT, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ, 8);
     pHIDService->createCharacteristic(UUID_HID_BOOT_OUTPUT, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR, 1);
@@ -66,57 +133,6 @@ void BleKeyboard::initHID()
     _inputMediaKeysReport->createDescriptor(UUID_HID_REPORT_DESCRIPTOR, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC)->setValue({REPORT_MEDIA_KEYS_ID, 0x01});
 
     pHIDService->start();
-}
-
-void BleKeyboard::initBATTERY(uint8_t level)
-{
-    BLEService *pBatteryService = _bleServer->createService(NimBLEUUID(UUID_BATTERY_SERVICE));
-
-    _batteryLevel = pBatteryService->createCharacteristic(UUID_BATTERY_LEVEL, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-    _batteryLevel->setValue(&level, 1);
-
-    NimBLE2904 *pBatteryLevelDescriptor = (NimBLE2904 *)_batteryLevel->createDescriptor((uint16_t)0x2904);
-    pBatteryLevelDescriptor->setFormat(NimBLE2904::FORMAT_UINT8);
-    pBatteryLevelDescriptor->setNamespace(1);
-    pBatteryLevelDescriptor->setUnit(0x27ad);
-
-    pBatteryService->start();
-}
-
-void BleKeyboard::initADVERTISING(uint32_t UUID)
-{
-    _advertising = NimBLEDevice::getAdvertising();
-    _advertising->setName(_deviceName);
-    _advertising->addServiceUUID(NimBLEUUID(UUID));
-    _advertising->setAppearance(APPEARANCE_KEYBOARD);
-}
-
-void BleKeyboard::loop()
-{
-    connected = _serverCallbacks.connect;
-    if (!connected)
-    {
-        authed = false;
-    }
-
-    if (_securityCallbacks.authDone)
-    {
-        _securityCallbacks.authDone = false;
-
-        authed = true;
-    }
-
-    ready = connected && authed;
-}
-
-void BleKeyboard::stopAdvertising()
-{
-    _advertising->start();
-}
-
-void BleKeyboard::startAdvertising()
-{
-    _advertising->start();
 }
 
 void BleKeyboard::_sendKeyReport()
