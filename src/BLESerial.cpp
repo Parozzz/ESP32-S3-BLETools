@@ -23,9 +23,9 @@ void BleSerial::init(NimBLEServer *bleServer)
 
     NimBLEService *aurtService = _bleServer->createService(NimBLEUUID(SERVICE_UUID));
 
-    _tx = aurtService->createCharacteristic(UUID_TX,  NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+    _tx = aurtService->createCharacteristic(UUID_TX, NIMBLE_PROPERTY::NOTIFY);
 
-    _rx = aurtService->createCharacteristic(UUID_RX, NIMBLE_PROPERTY::WRITE_NR);
+    _rx = aurtService->createCharacteristic(UUID_RX, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
     _rx->setCallbacks(&_rxCallbacks);
 
     aurtService->start();
